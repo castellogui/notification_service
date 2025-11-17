@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"notification_service/internal/api"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,6 +21,8 @@ func startApi(ctx context.Context) error {
 		Addr:    ":8080",
 		Handler: router,
 	}
+
+	api.SetupRouter(router)
 
 	go func() {
 		<-ctx.Done()
