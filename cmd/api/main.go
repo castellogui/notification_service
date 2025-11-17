@@ -33,7 +33,7 @@ func startApi(ctx context.Context) error {
 		}
 	}()
 
-	log.Println("api started")
+	log.Println("api started on", srv.Addr)
 	return srv.ListenAndServe()
 }
 
