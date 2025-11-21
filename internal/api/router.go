@@ -7,7 +7,7 @@ import (
 )
 
 func SetupRouter(r *gin.Engine) {
-	v1 := r.Group("/api/v1")
+	v1 := r.Group("/v1")
 
 	routes.RegisterNotificationRoutes(v1)
 }
