@@ -9,12 +9,20 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 )
 
-func startApi(ctx context.Context) error {
+var (
+	interruptSignals = []os.Signal{
+		os.Interrupt,
+		syscall.SIGTERM,
+		syscall.SIGINT,
+	}
+)
+
+func startApi(wg *errgroup.Group, ctx context.Context) {
 	router := gin.Default()
 
 	srv := &http.Server{
@@ -24,38 +32,45 @@ func startApi(ctx context.Context) error {
 
 	api.SetupRouter(router)
 
-	go func() {
+	wg.Go(func() error{
+		log.Println("api started on", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil{
+			if errors.Is(err, http.ErrServerClosed){
+				return nil
+			}
+			log.Println("failed to start main http server")
+			return err
+		}
+		return nil
+	})
+
+	wg.Go(func() error {
 		<-ctx.Done()
 		log.Println("shutting down api gracefully...")
+		srv.SetKeepAlivesEnabled(false)
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := srv.Shutdown(shutdownCtx); err != nil {
+		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Printf("error while api graceful shutdown: %v\n", err)
 		}
-	}()
-
-	log.Println("api started on", srv.Addr)
-	return srv.ListenAndServe()
+		log.Println("shutdown http server complete")
+		return nil
+	})
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), interruptSignals...)
+	defer stop()
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	waitGroup, ctx := errgroup.WithContext(ctx)
 	done := make(chan struct{})
 
 	go func() {
-		if err := startApi(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("app error: %v\n", err)
-		}
-		close(done)
+		defer close(done)
+	
+		startApi(waitGroup, ctx)
 	}()
 
 	<-sigChan
-	cancel()
 	<-done
-	log.Println("shutdown complete.")
 }
