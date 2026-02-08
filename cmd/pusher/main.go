@@ -29,6 +29,7 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 		if err != nil {
 			return err
 		}
+		log.Println("consumer started listening to topic:", topic)
 		defer conn.Close()
 
 		for {
@@ -53,7 +54,6 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 
 				// PROCESSA A MENSAGEM
 				fmt.Println(string(b[:n]))
-
 			}
 
 			batch.Close()
@@ -62,18 +62,22 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 }
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), interruptSignals...)
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		interruptSignals...,
+	)
 	defer stop()
-	sigChan := make(chan os.Signal, 1)
 
-	waitGroup, ctx := errgroup.WithContext(ctx)
-	done := make(chan struct{})
+	wg, ctx := errgroup.WithContext(ctx)
 
-	go func() {
-		defer close(done)
-		startPusher(waitGroup, ctx)
-	}()
+	startPusher(wg, ctx)
 
-	<-sigChan
-	<-done
+	<-ctx.Done()
+	log.Println("main: shutdown signal received")
+
+	if err := wg.Wait(); err != nil {
+		log.Println("worker error:", err)
+	}
+
+	log.Println("main: exiting")
 }
