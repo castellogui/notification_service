@@ -6,39 +6,74 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"golang.org/x/sync/errgroup"
+	"github.com/segmentio/kafka-go"
+	"time"
+	"fmt"
 )
 
-func startPusher(ctx context.Context) error {
-	log.Println("pusher started")
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("pusher is shutting down")
-			return nil
-
-		default:
-		}
+var (
+	interruptSignals = []os.Signal{
+		os.Interrupt,
+		syscall.SIGTERM,
+		syscall.SIGINT,
 	}
+)
+
+func startPusher(wg *errgroup.Group, ctx context.Context) {
+	wg.Go(func() error {
+		topic := "notification.events"
+		partition := 0
+
+		conn, err := kafka.DialLeader(ctx, "tcp", "localhost:9092", topic, partition)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+
+		for {
+			// se chegou sinal, não abre novo batch
+			select {
+			case <-ctx.Done():
+				log.Println("pusher: shutdown requested, stopping consumer")
+				return nil
+			default:
+			}
+
+			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			batch := conn.ReadBatch(10e3, 1e6)
+
+			b := make([]byte, 10e3)
+
+			for {
+				n, err := batch.Read(b)
+				if err != nil {
+					break
+				}
+
+				// PROCESSA A MENSAGEM
+				fmt.Println(string(b[:n]))
+
+			}
+
+			batch.Close()
+		}
+	})
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-
+	ctx, stop := signal.NotifyContext(context.Background(), interruptSignals...)
+	defer stop()
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	waitGroup, ctx := errgroup.WithContext(ctx)
 	done := make(chan struct{})
 
 	go func() {
-		if err := startPusher(ctx); err != nil {
-			log.Printf("app error on startup: %v\n", err)
-		}
-		close(done)
+		defer close(done)
+		startPusher(waitGroup, ctx)
 	}()
 
 	<-sigChan
-	cancel()
 	<-done
-	log.Println("shutdown complete.")
 }
