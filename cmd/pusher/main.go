@@ -14,6 +14,7 @@ import (
 	"notification_service/internal/pusher"
 	"notification_service/internal/pusher/channels/apns"
 	"notification_service/internal/pusher/domain"
+	"notification_service/internal/pusher/setup"
 )
 
 type KafkaReader struct {
@@ -37,7 +38,7 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 			GroupID: "main.pusher.group",
 		}
 
-		reg := pusher.SetupRegistry()
+		reg := setup.SetupRegistry()
 		hdlr := pusher.NewHandler(apns.NewAdapter(), reg)
 		kr := NewKafkaReader(conf, hdlr)
 		defer kr.r.Close()

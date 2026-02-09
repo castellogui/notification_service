@@ -1,8 +1,8 @@
-package pusher
+package setup
 
 import (
-	"notification_service/internal/pusher/kinds"
 	"notification_service/internal/pusher/registry"
+	"notification_service/internal/pusher/kinds"
 )
 
 func SetupRegistry() *registry.Registry {
