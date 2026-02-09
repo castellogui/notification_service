@@ -8,55 +8,33 @@ import (
 	"syscall"
 	"golang.org/x/sync/errgroup"
 	"github.com/segmentio/kafka-go"
-	"time"
 	"fmt"
-)
-
-var (
-	interruptSignals = []os.Signal{
-		os.Interrupt,
-		syscall.SIGTERM,
-		syscall.SIGINT,
-	}
 )
 
 func startPusher(wg *errgroup.Group, ctx context.Context) {
 	wg.Go(func() error {
 		topic := "notification.events"
-		partition := 0
 
-		conn, err := kafka.DialLeader(ctx, "tcp", "localhost:9092", topic, partition)
-		if err != nil {
-			return err
-		}
-		log.Println("consumer started listening to topic:", topic)
-		defer conn.Close()
+		r := kafka.NewReader(kafka.ReaderConfig{
+			Brokers: []string{"localhost:9092"},
+			Topic: topic,
+			MaxBytes: 10e6,
+			GroupID: "main.pusher.group",
+		})
+		defer r.Close()
+
+		log.Println("started pusher consumer listening topic:", topic)
 
 		for {
-			// se chegou sinal, não abre novo batch
-			select {
-			case <-ctx.Done():
-				log.Println("pusher: shutdown requested, stopping consumer")
-				return nil
-			default:
-			}
-
-			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-			batch := conn.ReadBatch(10e3, 1e6)
-
-			b := make([]byte, 10e3)
-
-			for {
-				n, err := batch.Read(b)
-				if err != nil {
-					break
+			m, err := r.ReadMessage(ctx)
+			if err != nil{
+				if ctx.Err() != nil {
+					log.Println("consumer shutdown gracefully")
+					return nil
 				}
-
-				// PROCESSA A MENSAGEM
-				fmt.Println(string(b[:n]))
+				return err
 			}
-
-			batch.Close()
+			fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 		}
 	})
 }
@@ -64,7 +42,8 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 func main() {
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
-		interruptSignals...,
+		os.Interrupt,
+		syscall.SIGTERM,
 	)
 	defer stop()
 
