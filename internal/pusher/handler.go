@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"log"
 
 	"notification_service/internal/pusher/domain"
-	"notification_service/internal/pusher/registry"
 	"notification_service/internal/pusher/interfaces"
+	"notification_service/internal/pusher/registry"
 )
 
 type Handler struct {
-	reg  *registry.Registry
+	reg      *registry.Registry
 	dbWriter interfaces.Writer
 }
 
@@ -36,17 +37,17 @@ func (h Handler) HandleMessage(ctx context.Context, raw []byte, to domain.Recipi
 		return fmt.Errorf("build view model: %w", err)
 	}
 
-	err = h.dbWriter.SaveNotification(ctx, domain.NotificationDB{
-		UserID: env.UserID,
+	_, err = h.dbWriter.SaveNotification(ctx, domain.NotificationDB{
+		UserID:    env.UserID,
 		CreatedAt: *env.CreatedAt,
-		ID: env.ID,
-		Kind: string(env.Kind),
-		Title: vm.Title,
-		Body: vm.Body,
-		Category: vm.Category,
-		DeepLink: vm.DeepLink,
-		Data: vm.Data,
-		Read: false,
+		ID:        uuid.New().String(),
+		Kind:      string(env.Kind),
+		Title:     vm.Title,
+		Body:      vm.Body,
+		Category:  vm.Category,
+		DeepLink:  vm.DeepLink,
+		Data:      vm.Data,
+		Read:      false,
 	})
 
 	if err == nil {

@@ -11,6 +11,6 @@ func RegisterNotificationRoutes(rg *gin.RouterGroup, h *handlers.Handler) {
 
 	notification.POST("/", h.CreateNotification)
 	notification.GET("/:user_id/:id", h.GetNotification)
-	notification.PUT("/:id", nil)
+	notification.PATCH("/:user_id/:id", h.UpdateNotification)
 	notification.DELETE("/:id", h.DeleteNotification)
 }
