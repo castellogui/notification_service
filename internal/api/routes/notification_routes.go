@@ -6,10 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterNotificationRoutes(rg *gin.RouterGroup) {
+func RegisterNotificationRoutes(rg *gin.RouterGroup, h *handlers.Handler) {
 	notification := rg.Group("/notifications")
 
-	notification.POST("/", handlers.CreateNotification)
+	notification.POST("/", h.CreateNotification)
 	notification.GET("/:id", nil)
 	notification.PUT("/:id", nil)
 	notification.DELETE("/:id", nil)
