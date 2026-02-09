@@ -32,7 +32,7 @@ func build(p domain.KindVersionMetadata) (domain.ViewModel, error) {
 		return domain.ViewModel{}, fmt.Errorf("status builder expects PayloadV1")
 	}
 	return domain.ViewModel{
-		Title:    "Atualização",
+		Title:    "Status Updated!",
 		Body:     v.Entity + " " + v.EntityID + " -> " + v.NewStatus,
 		Category: "status",
 		DeepLink: "app://orders/" + v.EntityID,
