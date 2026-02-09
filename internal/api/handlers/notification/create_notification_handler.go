@@ -27,6 +27,9 @@ func (h *Handler) CreateNotification(c *gin.Context) {
 		return
 	}
 
+	now := time.Now()
+	envelope.CreatedAt = &now
+
 	msg, err := json.Marshal(envelope)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to marshal envelope"})

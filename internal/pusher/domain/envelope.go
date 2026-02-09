@@ -13,6 +13,7 @@ type Envelope struct {
 	UserID			string  		`json:"userid"`
 	Kind			Kind			`json:"kind"`
 	Version 		int				`json:"version"`
+	CreatedAt		*time.Time		`json:"createdAt,omitempty"`
 	DeliverAt		*time.Time		`json:"deliverAt,omitempty"`
 	ChannelHints 	[]Channel		`json:"channelHints,omitempty"`
 	Payload			json.RawMessage	`json:"payload"`
