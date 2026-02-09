@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/gocql/gocql"
 	"github.com/segmentio/kafka-go"
 	"golang.org/x/sync/errgroup"
 
+	"notification_service/internal/infra"
 	"notification_service/internal/pusher"
-	"notification_service/internal/pusher/channels/apns"
 	"notification_service/internal/pusher/domain"
 	"notification_service/internal/pusher/setup"
 )
@@ -32,18 +32,31 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 		topic := "notification.events"
 
 		conf := &kafka.ReaderConfig{
-			Brokers: []string{"localhost:9092"},
+			Brokers: []string{"localhost"},
 			Topic:   topic,
 			MaxBytes: 10e6,
 			GroupID: "main.pusher.group",
 		}
 
-		reg := setup.SetupRegistry()
-		hdlr := pusher.NewHandler(apns.NewAdapter(), reg)
-		kr := NewKafkaReader(conf, hdlr)
-		defer kr.r.Close()
+		session, err := infra.NewScyllaSession(infra.ScyllaConfig{
+			Hosts: []string{"localhost"},
+			Port: 9042,
+			Keyspace: "notification_service",
+			Username: "cassandra",
+			Password: "cassandra",
+			Consistency: gocql.One,
+		})
+		if err != nil {
+			log.Fatalf("failed to create scylla session: %v", err)
+		}
 
+		reg := setup.SetupRegistry()
+		hdlr := pusher.NewHandler(infra.NewScyllaWriter(session), reg)
+		kr := NewKafkaReader(conf, hdlr)
+		log.Println("successfully created scylla session")
 		log.Println("started pusher consumer listening topic:", topic)
+
+		defer kr.r.Close()
 
 		for {
 			m, err := kr.r.FetchMessage(ctx)
@@ -54,7 +67,6 @@ func startPusher(wg *errgroup.Group, ctx context.Context) {
 				}
 				return err
 			}
-			fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 			if err := kr.hdlr.HandleMessage(ctx, m.Value, domain.Recipient{DeviceToken: "device_token_abc"}); err != nil {
 				log.Printf("process error: %v\n", err)
 			}

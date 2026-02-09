@@ -6,19 +6,12 @@ import (
 
 	"notification_service/internal/pusher/domain"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
-	"time"
 )
-
-type Handler struct {
-	writer *kafka.Writer
-}
-
-func NewHandler(w *kafka.Writer) *Handler {
-	return &Handler{writer: w}
-}
 
 func (h *Handler) CreateNotification(c *gin.Context) {
 	var envelope domain.Envelope

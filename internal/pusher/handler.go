@@ -4,19 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
-	"notification_service/internal/pusher/channels/apns"
 	"notification_service/internal/pusher/domain"
 	"notification_service/internal/pusher/registry"
+	"notification_service/internal/pusher/interfaces"
 )
 
 type Handler struct {
-	apns apns.Adapter
 	reg  *registry.Registry
+	dbWriter interfaces.Writer
 }
 
-func NewHandler(a apns.Adapter, reg *registry.Registry) Handler {
-	return Handler{apns: a, reg: reg}
+func NewHandler(dbWriter interfaces.Writer, reg *registry.Registry) Handler {
+	return Handler{dbWriter: dbWriter, reg: reg}
 }
 
 func (h Handler) HandleMessage(ctx context.Context, raw []byte, to domain.Recipient) error {
@@ -35,5 +36,22 @@ func (h Handler) HandleMessage(ctx context.Context, raw []byte, to domain.Recipi
 		return fmt.Errorf("build view model: %w", err)
 	}
 
-	return h.apns.Send(ctx, to, vm)
+	err = h.dbWriter.SaveNotification(ctx, domain.NotificationDB{
+		UserID: env.UserID,
+		CreatedAt: *env.CreatedAt,
+		ID: env.ID,
+		Kind: string(env.Kind),
+		Title: vm.Title,
+		Body: vm.Body,
+		Category: vm.Category,
+		DeepLink: vm.DeepLink,
+		Data: vm.Data,
+		Read: false,
+	})
+
+	if err == nil {
+		log.Println("notification hanlded successfully")
+	}
+
+	return err
 }

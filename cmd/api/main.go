@@ -10,10 +10,12 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gocql/gocql"
 	"github.com/segmentio/kafka-go"
 	"golang.org/x/sync/errgroup"
 
 	"notification_service/internal/api"
+	"notification_service/internal/infra"
 )
 
 var (
@@ -31,6 +33,18 @@ func startApi(wg *errgroup.Group, ctx context.Context) {
 		Balancer: &kafka.LeastBytes{},
 	}
 
+	dbSession, err := infra.NewScyllaSession(infra.ScyllaConfig{
+		Hosts: []string{"localhost"},
+		Port: 9042,
+		Keyspace: "notification_service",
+		Username: "cassandra",
+		Password: "cassandra",
+		Consistency: gocql.One,
+	})
+	if err != nil {
+		log.Fatalf("failed to create scylla session: %v", err)
+	}
+
 	router := gin.Default()
 
 	srv := &http.Server{
@@ -38,7 +52,7 @@ func startApi(wg *errgroup.Group, ctx context.Context) {
 		Handler: router,
 	}
 
-	api.SetupRouter(router, writer)
+	api.SetupRouter(router, writer, dbSession)
 
 	wg.Go(func() error {
 		log.Println("api started on", srv.Addr)

@@ -2,16 +2,15 @@ package domain
 
 import "time"
 
-// NotificationDB é o modelo de persistência de notificação (tabela notifications).
 type NotificationDB struct {
-	UserID    string
-	CreatedAt time.Time
-	ID        string
-	Kind      string
-	Title     string
-	Body      string
-	Category  string
-	DeepLink  string
-	Data      map[string]string
-	Read      bool
+	UserID    string            `json:"user_id"`
+	CreatedAt time.Time         `json:"created_at"`
+	ID        string            `json:"id"`
+	Kind      string            `json:"kind"`
+	Title     string            `json:"title"`
+	Body      string            `json:"body"`
+	Category  string            `json:"category"`
+	DeepLink  string            `json:"deep_link"`
+	Data      map[string]string `json:"data"`
+	Read      bool              `json:"read"`
 }
