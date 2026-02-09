@@ -17,3 +17,13 @@ type Envelope struct {
 	ChannelHints 	[]Channel		`json:"channelHints,omitempty"`
 	Payload			json.RawMessage	`json:"payload"`
 }
+
+type KindVersionMetadata interface {
+	Kind() Kind
+	Version() int
+	Validate() error
+}
+
+type Recipient struct {
+	DeviceToken string
+}
